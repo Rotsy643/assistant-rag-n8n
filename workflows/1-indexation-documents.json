@@ -1,0 +1,268 @@
+{
+  "name": "1 - Indexation des documents",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/data/documents",
+        "events": ["add", "change"],
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000001",
+      "name": "Surveillance du dossier",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.path }}",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000002",
+      "name": "Lire le fichier",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $binary.data.fileExtension }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "pdf"
+            }
+          ]
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000003",
+      "name": "PDF ou texte ?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "destinationKey": "texte",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000004",
+      "name": "Extraire le PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [660, -100]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "data",
+        "destinationKey": "texte",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000005",
+      "name": "Extraire le texte",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "texte",
+              "value": "={{ $json.texte }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "fileId",
+              "value": "={{ $binary.data.fileName || $json.fileName || 'document' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000006",
+      "name": "Préparer les métadonnées",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "documents_entreprise",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000007",
+      "name": "Indexer dans Qdrant",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "chunkSize": 600,
+        "chunkOverlap": 80,
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000008",
+      "name": "Découpage du texte",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text",
+        "options": {}
+      },
+      "id": "a1000001-0000-4000-8000-000000000009",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [1060, 200]
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "fileId",
+                "value": "={{ $json.fileId }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a1000001-0000-4000-8000-000000000010",
+      "name": "Chargement des données",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [1420, 200]
+    }
+  ],
+  "connections": {
+    "Surveillance du dossier": {
+      "main": [
+        [
+          {
+            "node": "Lire le fichier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le fichier": {
+      "main": [
+        [
+          {
+            "node": "PDF ou texte ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF ou texte ?": {
+      "main": [
+        [
+          {
+            "node": "Extraire le PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extraire le texte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le PDF": {
+      "main": [
+        [
+          {
+            "node": "Préparer les métadonnées",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le texte": {
+      "main": [
+        [
+          {
+            "node": "Préparer les métadonnées",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer les métadonnées": {
+      "main": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Découpage du texte": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embeddings": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_embeddings",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chargement des données": {
+      "ai_documentLoader": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_documentLoader",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
