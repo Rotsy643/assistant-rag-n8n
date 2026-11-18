@@ -7,6 +7,15 @@ ajouté ou modifié.
 
 Projet de démo : restaurant fictif « Le Zébu Doré » (Antananarivo).
 
+> **Deux variantes disponibles :**
+> - **Cloud, 100 % gratuit, rien à installer** : n8n sur Hugging Face Spaces,
+>   Qdrant Cloud, embeddings Gemini, documents dans Google Drive
+>   → suivre [`docs/deploiement-cloud.md`](docs/deploiement-cloud.md) avec les
+>   workflows `workflows/*-cloud.json` (recommandé).
+> - **Local** : tout en Docker sur ta machine (`docker-compose.yml`) + workflows
+>   `workflows/1-indexation-documents.json` et `workflows/2-assistant-question-reponse.json`.
+>   Nécessite ~2 à 3 Go de téléchargement et ~4 Go de disque.
+
 ## Architecture
 
 ```
@@ -43,7 +52,7 @@ Dans n8n (http://localhost:5678) :
 2. Importer `workflows/1-indexation-documents.json` puis `workflows/2-assistant-question-reponse.json`.
 3. Dans chaque nœud Qdrant : URL `http://host.docker.internal:6333`, collection `documents_entreprise`.
 4. Dans chaque nœud Ollama : URL `http://host.docker.internal:11434`, modèle `nomic-embed-text`.
-5. Dans le workflow 2 : sélectionner la credential Groq ; renseigner le `chatId` du propriétaire dans le nœud Telegram (avec la credential du bot).
+5. Dans le workflow 2 : sélectionner la credential Groq ; renseigner le `chatId` du propriétaire dans le nœud Telegram (avec la credential du bot). Le nœud « Notifier le propriétaire » est optionnel dans les deux variantes.
 6. Copier les fichiers de `documents/` vers le dossier monté sur `/data/documents` → la première indexation se déclenche (sinon : exécuter le workflow 1 manuellement).
 7. Activer les deux workflows, puis ouvrir le chat n8n (« Open chat »).
 

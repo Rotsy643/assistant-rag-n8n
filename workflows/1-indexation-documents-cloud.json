@@ -1,0 +1,326 @@
+{
+  "name": "1 - Indexation des documents (cloud)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "REMPLACER_ID_DOSSIER_DRIVE",
+          "mode": "id"
+        },
+        "event": "anyChange"
+      },
+      "id": "a2000001-0000-4000-8000-000000000001",
+      "name": "Nouveaux fichiers Drive",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000002",
+      "name": "Télécharger le fichier",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [220, 0],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cond-pdf",
+                    "leftValue": "={{ $binary.data.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "pdf"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "a2000001-0000-4000-8000-000000000003",
+      "name": "PDF ou texte ?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "destinationKey": "texte",
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000004",
+      "name": "Extraire le PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [660, -100]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "data",
+        "destinationKey": "texte",
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000005",
+      "name": "Extraire le texte",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "texte",
+              "value": "={{ $json.texte }}",
+              "type": "string"
+            },
+            {
+              "id": "f2",
+              "name": "fileId",
+              "value": "={{ $json.name || $binary.data.fileName || 'document' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000006",
+      "name": "Préparer les métadonnées",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "host": "REMPLACER_URL_CLUSTER_QDRANT",
+        "useTls": true,
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "documents_entreprise",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000007",
+      "name": "Indexer dans Qdrant",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [1100, 0],
+      "credentials": {
+        "qdrantApi": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 600,
+        "chunkOverlap": 80,
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000008",
+      "name": "Découpage du texte",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "modelName": "models/text-embedding-004",
+        "options": {}
+      },
+      "id": "a2000001-0000-4000-8000-000000000009",
+      "name": "Embeddings Gemini",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [1060, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Google Gemini (PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "fileId",
+                "value": "={{ $json.fileId }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a2000001-0000-4000-8000-000000000010",
+      "name": "Chargement des données",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [1420, 200]
+    }
+  ],
+  "connections": {
+    "Nouveaux fichiers Drive": {
+      "main": [
+        [
+          {
+            "node": "Télécharger le fichier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Télécharger le fichier": {
+      "main": [
+        [
+          {
+            "node": "PDF ou texte ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF ou texte ?": {
+      "main": [
+        [
+          {
+            "node": "Extraire le PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extraire le texte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le PDF": {
+      "main": [
+        [
+          {
+            "node": "Préparer les métadonnées",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le texte": {
+      "main": [
+        [
+          {
+            "node": "Préparer les métadonnées",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer les métadonnées": {
+      "main": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Découpage du texte": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Gemini": {
+      "ai_embeddings": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_embeddings",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chargement des données": {
+      "ai_documentLoader": [
+        [
+          {
+            "node": "Indexer dans Qdrant",
+            "type": "ai_documentLoader",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

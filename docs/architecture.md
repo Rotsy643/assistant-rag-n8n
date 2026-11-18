@@ -7,19 +7,22 @@ Trois chaînes : **indexation** (automatique), **question-réponse** (à la dema
 
 | Élément | Choix | Justification |
 |---|---|---|
-| Orchestration | n8n (Docker) | Contrainte du projet, exports JSON |
+| Orchestration | n8n — Hugging Face Spaces (cloud) ou Docker local | Contrainte du projet, exports JSON, 2 variantes documentées |
 | LLM | Groq — `llama-3.3-70b-versatile`, température 0.2 | Tier gratuit, rapide (quelques secondes), clé stockée en credential |
-| Embeddings | Ollama local — `nomic-embed-text` | Gratuit (Groq ne propose pas d'embeddings), données locales |
-| Base vectorielle | Qdrant (Docker), collection `documents_entreprise` | Natif dans n8n, filtre par métadonnée `fileId` |
+| Embeddings | Cloud : API Gemini (`text-embedding-004`) · Local : Ollama `nomic-embed-text` | Gratuits ; Groq ne propose pas d'embeddings |
+| Base vectorielle | Qdrant — Cloud free 1 Go ou Docker, collection `documents_entreprise` | Natif dans n8n, filtre par métadonnée `fileId` |
 | Canal | Chat web natif n8n (public) | Zéro configuration, démonstration immédiate |
-| Déclencheur d'indexation | Local File Trigger (ajout/modification) | critère « interrogeable sans intervention manuelle » |
+| Déclencheur d'indexation | Cloud : Google Drive Trigger · Local : Local File Trigger | critère « interrogeable sans intervention manuelle » |
 | Notification | Telegram (bot @BotFather) | Gratuit, simple, remplaçable par e-mail SMTP |
+| Coût total | 0 € | Tous les services offrent un tier gratuit suffisant |
 
 ## 2. Indexation (workflow 1)
 
-Local File Trigger `/data/documents` → lecture du fichier → extraction (PDF via
-Extract From File, TXT/MD via opération texte) → métadonnée `fileId` (nom du fichier)
-→ découpage **600 caractères / chevauchement 80** → embeddings Ollama → Qdrant.
+Google Drive Trigger sur le dossier documents (variante cloud) ou Local File Trigger
+`/data/documents` (variante locale) → lecture/téléchargement du fichier → extraction
+(PDF via Extract From File, TXT/MD via opération texte) → métadonnée `fileId`
+(nom du fichier) → découpage **600 caractères / chevauchement 80** → embeddings
+(Gemini cloud / Ollama local) → Qdrant.
 
 - Le découpage 600/80 garde un item de menu ou une question/réponse de la FAQ entier
   dans un même morceau tout en limitant le bruit.
@@ -73,7 +76,7 @@ un Google Sheet (double usage : tableau des questions fréquentes).
 | ≥ 80 % sur 20 questions | Grille `tests/questions-test.md` (16/20 minimum) |
 | Repli sur les hors-sujets | Prompt (règle 3) + nœud IF + notification |
 | Nouveau document interrogeable sans action | Local File Trigger → indexation automatique |
-| Temps de réponse acceptable | Inférence Groq rapide + recherche vectorielle locale (top-k 4) |
+| Temps de réponse acceptable | Inférence Groq rapide + recherche vectorielle (top-k 4) |
 | Aucun secret dans les exports | Clés uniquement dans les credentials n8n, jamais dans les nœuds |
 | Indication de la source | Règle 2 du prompt (nom du document entre parenthèses) |
 | Langues | Règle 6 : français, anglais, malgache |
